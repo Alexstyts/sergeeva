@@ -12,14 +12,15 @@
       --sidebar:#10131b; --shadow:0 12px 34px rgba(26,31,44,.07);
     }
     *{box-sizing:border-box}
-    html,body{margin:0;min-height:100%;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--ink);background:var(--bg)}
+    html{scroll-behavior:smooth} html,body{margin:0;min-height:100%;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;color:var(--ink);background:var(--bg)}
     button{font:inherit}
     .layout{min-height:100vh;display:grid;grid-template-columns:220px minmax(0,1fr)}
     aside{background:linear-gradient(180deg,#0d1017,#151925);color:white;padding:28px 18px;position:sticky;top:0;height:100vh}
     .logo{font-weight:900;font-size:24px;letter-spacing:-.06em;margin:0 8px 3px}
     .tagline{font-size:11px;color:#9da5b4;line-height:1.45;margin:0 8px 28px}
     .nav{display:grid;gap:8px}
-    .nav div{padding:12px 13px;border-radius:12px;color:#b9c0cc;font-size:13px}
+    .nav a{display:block;padding:12px 13px;border-radius:12px;color:#b9c0cc;font-size:13px;text-decoration:none;transition:.18s ease}
+    .nav a:hover{background:rgba(255,255,255,.06);color:#fff}
     .nav .active{background:linear-gradient(135deg,#6d32f3,#7c44ff);color:#fff;box-shadow:0 8px 24px rgba(111,59,245,.28)}
     .aside-bottom{position:absolute;left:26px;right:26px;bottom:24px;font-size:11px;color:#8790a0;line-height:1.55}
     main{padding:28px;min-width:0}
@@ -86,14 +87,14 @@
     <div class="logo">ЕБЮРО</div>
     <div class="tagline">Реклама движется туда,<br>где прибыль</div>
     <div class="nav">
-      <div class="active">Главная</div>
-      <div>Склейки и товары</div>
-      <div>Сводная таблица</div>
+      <a class="active" href="#top">Главная</a>
+      <a href="#products-section">Склейки и товары</a>
+      <a href="#summary-section">Сводная таблица</a>
     </div>
     <div class="aside-bottom">Персональный кабинет<br>ИП Сергеева<br><br>Данные обновляются автоматически</div>
   </aside>
 
-  <main>
+  <main id="top">
     <div class="head">
       <div><h1>Персональный кабинет</h1><div class="subtitle">ИП Сергеева · Wildberries</div></div>
       <div><div class="updated">↻ Обновлено: <b id="updatedAt">—</b></div><div class="cache-note" id="cacheNote"></div></div>
@@ -131,14 +132,14 @@
         <div class="legend"><span><i></i>Текущий период</span><span><i class="prev"></i>Предыдущий период</span></div>
       </section>
 
-      <section class="panel">
+      <section class="panel" id="summary-section">
         <div class="panel-head">
           <div><div class="panel-title">Сводная по категории</div><div class="panel-sub">Актуальные даты показаны первыми</div></div>
         </div>
         <div class="scroll"><table id="summaryTable"></table></div>
       </section>
 
-      <section class="panel">
+      <section class="panel" id="products-section">
         <div class="panel-head">
           <div><div class="panel-title">Склейки и товары</div><div class="panel-sub">Заказы, прибыль и рекламный бюджет</div></div>
           <div class="tabs" id="tabs"></div>
@@ -218,18 +219,54 @@ function currentSummary(){
   return {dates:s.dates||[],orders:s.orders||[],profit:s.profit||[],budget:s.budget||[],orderSum:s.orderSum||s.revenue||[]}
 }
 function renderYesterday(){
-  const s=currentSummary(), i=s.dates.length-1, p=i-1;
-  if(i<0)return;
+  const s=currentSummary();
+  if(!s.dates.length)return;
+
+  // "Вчера" считаем по Москве, а не как последнюю колонку в таблице.
+  const now = new Date();
+  const mskNow = new Date(now.toLocaleString('en-US',{timeZone:'Europe/Moscow'}));
+  mskNow.setDate(mskNow.getDate()-1);
+
+  const y = mskNow.getFullYear();
+  const m = String(mskNow.getMonth()+1).padStart(2,'0');
+  const d = String(mskNow.getDate()).padStart(2,'0');
+  const yesterdayKey = `${y}-${m}-${d}`;
+
+  let i = s.dates.indexOf(yesterdayKey);
+
+  // Если точной даты нет, берём последнюю доступную дату ДО сегодняшнего дня.
+  if(i < 0){
+    const todayMsk = new Date(now.toLocaleString('en-US',{timeZone:'Europe/Moscow'}));
+    const ty = todayMsk.getFullYear();
+    const tm = String(todayMsk.getMonth()+1).padStart(2,'0');
+    const td = String(todayMsk.getDate()).padStart(2,'0');
+    const todayKey = `${ty}-${tm}-${td}`;
+    for(let k=s.dates.length-1;k>=0;k--){
+      if(s.dates[k] < todayKey){ i=k; break; }
+    }
+  }
+
+  if(i < 0)return;
+
+  const p=i-1;
   const orders=Number(s.orders[i])||0, prevOrders=p>=0?Number(s.orders[p])||0:0;
   const budget=Number(s.budget[i])||0, prevBudget=p>=0?Number(s.budget[p])||0:0;
   const revenue=Number(s.orderSum[i])||0, prevRevenue=p>=0?Number(s.orderSum[p])||0:0;
+
   document.getElementById('ydDate').textContent=fdate(s.dates[i]);
   document.getElementById('ydOrders').textContent=num(orders)+' шт.';
   document.getElementById('ydBudget').textContent=money(budget);
   document.getElementById('ydRevenue').textContent=s.orderSum.length?money(revenue):'—';
+
   setDelta('ydOrdersDelta',orders,prevOrders);
   setDelta('ydBudgetDelta',budget,prevBudget);
-  if(s.orderSum.length)setDelta('ydRevenueDelta',revenue,prevRevenue); else document.getElementById('ydRevenueDelta').textContent='нужно добавить поле в API';
+
+  if(s.orderSum.length){
+    setDelta('ydRevenueDelta',revenue,prevRevenue);
+  }else{
+    document.getElementById('ydRevenueDelta').textContent='сумма заказов пока не передаётся';
+    document.getElementById('ydRevenueDelta').className='delta neutral';
+  }
 }
 function renderKpi(){
   const s=currentSummary(), dates=sliceCurrent(s.dates), label=dates.length?`${shortDate(dates[0])} — ${shortDate(dates[dates.length-1])}`:'';
@@ -277,16 +314,26 @@ function renderTabs(){
 function renderProducts(){
   const c=(DATA.categories||[]).find(x=>String(x.id)===String(ACTIVE)), el=document.getElementById('products');
   if(!c){el.innerHTML='';return}
-  el.innerHTML=(c.products||[]).map(card).join('');
+
+  const products=(c.products||[]).slice().sort((a,b)=>{
+    const aOrders=sum(sliceCurrent(a.orders));
+    const bOrders=sum(sliceCurrent(b.orders));
+    if(aOrders===0 && bOrders!==0) return 1;
+    if(bOrders===0 && aOrders!==0) return -1;
+    return bOrders-aOrders;
+  });
+
+  el.innerHTML=products.map(card).join('');
 }
 function card(p){
   const dates=reverse(sliceCurrent(p.dates)), orders=reverse(sliceCurrent(p.orders)), profit=reverse(sliceCurrent(p.profit)), budget=reverse(sliceCurrent(p.budget));
+  const zeroSales=sum(orders)===0;
   const photo=p.photo?`<img class="photo" src="${p.photo}" alt="${p.nmId}" loading="lazy" referrerpolicy="no-referrer">`:`<div class="ph">фото<br>недоступно</div>`;
   let h='<thead><tr><th>Показатель</th>'+dates.map(d=>`<th>${shortDate(d)}</th>`).join('')+'</tr></thead><tbody>';
   h+='<tr><td>Заказы</td>'+orders.map(v=>`<td>${num(v)}</td>`).join('')+'</tr>';
   h+='<tr><td>Чистая прибыль</td>'+profit.map(v=>`<td class="${Number(v)>=0?'profit-pos':'profit-neg'}">${money(v)}</td>`).join('')+'</tr>';
   h+='<tr><td>Бюджет</td>'+budget.map(v=>`<td>${money(v)}</td>`).join('')+'</tr></tbody>';
-  return `<article class="product"><div class="product-top">${photo}<div><div class="sku">${p.nmId}</div><div class="sku-sub">Артикул Wildberries</div></div></div><div class="scroll"><table>${h}</table></div></article>`;
+  return `<article class="product" style="${zeroSales?'opacity:.66':''}"><div class="product-top">${photo}<div><div class="sku">${p.nmId}</div><div class="sku-sub">Артикул Wildberries${zeroSales?' · без заказов за выбранный период':''}</div></div></div><div class="scroll"><table>${h}</table></div></article>`;
 }
 document.querySelectorAll('.period').forEach(b=>b.onclick=()=>{PERIOD=Number(b.dataset.days);document.querySelectorAll('.period').forEach(x=>x.classList.remove('active'));b.classList.add('active');if(DATA)paint()});
 load();
