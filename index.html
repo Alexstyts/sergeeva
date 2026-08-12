@@ -36,7 +36,7 @@
     .y-item span,.metric-card span{display:block;font-size:11px;color:inherit;opacity:.72;margin-bottom:6px}
     .y-item b{font-size:18px}
     .delta{font-size:11px;margin-top:5px;opacity:.9}.delta.up{color:#caffdf}.delta.down{color:#ffd5d0}.delta.neutral{color:#eee}
-    .metric-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow);min-width:0}
+    .metric-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;box-shadow:var(--shadow);min-width:0;min-height:0}
     .metric-card b{font-size:26px;letter-spacing:-.04em}
     .metric-card .hint{font-size:11px;color:var(--muted);margin-top:7px}
     .panel{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);margin-top:15px;overflow:hidden}
@@ -109,7 +109,7 @@
           <div class="eyebrow">Вчера</div><div class="date" id="ydDate">—</div>
           <div class="y-list">
             <div class="y-item"><span>Заказы</span><b id="ydOrders">—</b><div class="delta" id="ydOrdersDelta"></div></div>
-            <div class="y-item"><span>Сумма в заказах</span><b id="ydRevenue">—</b><div class="delta" id="ydRevenueDelta"></div></div>
+            <div class="y-item"><span>Чистая прибыль</span><b id="ydProfit">—</b><div class="delta" id="ydProfitDelta"></div></div>
             <div class="y-item"><span>Бюджет</span><b id="ydBudget">—</b><div class="delta" id="ydBudgetDelta"></div></div>
           </div>
         </article>
@@ -183,7 +183,7 @@ function renderFromCache(){
     const saved=JSON.parse(raw);
     if(!saved||!saved.data||saved.data.ok!==true)return false;
     DATA=saved.data;
-    document.getElementById('cacheNote').textContent='Показаны последние сохранённые данные · обновляем в фоне';
+    document.getElementById('cacheNote').textContent='Обновляем данные в фоне';
     show();
     return true;
   }catch(e){return false}
@@ -251,22 +251,16 @@ function renderYesterday(){
   const p=i-1;
   const orders=Number(s.orders[i])||0, prevOrders=p>=0?Number(s.orders[p])||0:0;
   const budget=Number(s.budget[i])||0, prevBudget=p>=0?Number(s.budget[p])||0:0;
-  const revenue=Number(s.orderSum[i])||0, prevRevenue=p>=0?Number(s.orderSum[p])||0:0;
+  const profit=Number(s.profit[i])||0, prevProfit=p>=0?Number(s.profit[p])||0:0;
 
   document.getElementById('ydDate').textContent=fdate(s.dates[i]);
   document.getElementById('ydOrders').textContent=num(orders)+' шт.';
+  document.getElementById('ydProfit').textContent=money(profit);
   document.getElementById('ydBudget').textContent=money(budget);
-  document.getElementById('ydRevenue').textContent=s.orderSum.length?money(revenue):'—';
 
   setDelta('ydOrdersDelta',orders,prevOrders);
+  setDelta('ydProfitDelta',profit,prevProfit);
   setDelta('ydBudgetDelta',budget,prevBudget);
-
-  if(s.orderSum.length){
-    setDelta('ydRevenueDelta',revenue,prevRevenue);
-  }else{
-    document.getElementById('ydRevenueDelta').textContent='сумма заказов пока не передаётся';
-    document.getElementById('ydRevenueDelta').className='delta neutral';
-  }
 }
 function renderKpi(){
   const s=currentSummary(), dates=sliceCurrent(s.dates), label=dates.length?`${shortDate(dates[0])} — ${shortDate(dates[dates.length-1])}`:'';
