@@ -1,8 +1,349 @@
-<!doctype html><html lang='ru'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Е-БЮРО · WB Dashboard</title><link rel='stylesheet' href='style.css'></head><body>
-<div class='shell'><aside><div class='logo'>Е-БЮРО</div><div class='sub'>WB Analytics</div><nav><button class='active'>Обзор</button><button>Товары</button><button>Категории</button></nav><div class='aside-foot'>Данные обновляются автоматически</div></aside>
-<main><header><div><div class='eyebrow'>КЛИЕНТСКИЙ КАБИНЕТ</div><h1 id='client'>ИП Сергеева</h1></div><div class='controls'><select id='period'><option value='1'>Вчера</option><option value='7' selected>7 дней</option><option value='30'>30 дней</option></select><button id='refresh'>Обновить</button></div></header>
-<div id='status' class='status'>Загрузка данных…</div>
-<section id='kpis' class='kpis'></section>
-<section class='grid'><div class='panel wide'><div class='panel-head'><h2>Динамика</h2><span>Продажи · реклама · прибыль</span></div><canvas id='chart' width='900' height='300'></canvas></div><div class='panel'><div class='panel-head'><h2>Требует внимания</h2></div><div id='alerts'></div></div></section>
-<section class='panel'><div class='panel-head'><h2>Товары</h2><span id='productCount'></span></div><div id='products' class='products'></div></section>
-<footer>Е-БЮРО · реклама движется туда, где прибыль</footer></main></div><script src='app.js'></script></body></html>
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Е-БЮРО — отчёт Wildberries</title>
+  <meta name="theme-color" content="#0d1117" />
+  <style>
+    :root{
+      --bg:#f3f5f8;
+      --panel:#ffffff;
+      --panel2:#fafbfc;
+      --text:#16181d;
+      --muted:#737985;
+      --line:#e7e9ee;
+      --accent:#111827;
+      --green:#117a55;
+      --red:#b42318;
+      --shadow:0 8px 28px rgba(16,24,40,.07);
+      --radius:20px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+    body{min-height:100vh}
+    .shell{max-width:1500px;margin:0 auto;padding:26px}
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;gap:18px;
+      background:linear-gradient(135deg,#0b0f16 0%,#18202d 100%);color:#fff;border-radius:28px;padding:26px 28px;box-shadow:0 18px 50px rgba(15,23,42,.16)
+    }
+    .brand{display:flex;align-items:center;gap:14px}
+    .logo{
+      width:44px;height:44px;border-radius:14px;background:#fff;color:#0d1117;
+      display:grid;place-items:center;font-weight:900;font-size:18px;letter-spacing:-.05em
+    }
+    .brand h1{margin:0;font-size:19px;letter-spacing:-.02em}
+    .brand p{margin:4px 0 0;color:#aeb5c2;font-size:13px}
+    .status{font-size:12px;color:#c8ced8;text-align:right}
+    .status b{color:#fff;font-weight:600}
+    .controls{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:22px 0}
+    .periods{display:flex;gap:8px;flex-wrap:wrap}
+    .period{
+      border:1px solid var(--line);background:var(--panel);padding:9px 14px;border-radius:12px;
+      cursor:pointer;font-weight:650;color:#444b57
+    }
+    .period.active{background:#111827;color:white;border-color:#111827}
+    .refresh{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:13px}
+    .kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .kpi{background:linear-gradient(180deg,#fff 0%,#fbfcfe 100%);border:1px solid var(--line);border-radius:22px;padding:23px;box-shadow:0 10px 30px rgba(16,24,40,.06);position:relative;overflow:hidden}
+    .kpi:after{content:"";position:absolute;right:-28px;top:-35px;width:105px;height:105px;border-radius:50%;background:rgba(17,24,39,.035)}
+    .kpi:first-child:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#111827;border-radius:4px}
+    .kpi:nth-child(2):before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#667085;border-radius:4px}
+    .kpi:nth-child(3):before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#98a2b3;border-radius:4px}
+    .kpi .label{font-size:13px;color:var(--muted);margin-bottom:10px}
+    .kpi .value{font-size:32px;font-weight:800;letter-spacing:-.04em}
+    .kpi .sub{margin-top:8px;color:var(--muted);font-size:12px}
+    .section{margin-top:18px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+    .section-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:19px 21px;border-bottom:1px solid var(--line)}
+    .section-title{font-size:16px;font-weight:800;letter-spacing:-.02em}
+    .section-note{font-size:12px;color:var(--muted)}
+    .chartwrap{padding:14px 18px 4px}
+    svg.chart{width:100%;height:185px;display:block}
+    .legend{display:flex;gap:18px;align-items:center;padding:0 21px 18px;color:var(--muted);font-size:12px}
+    .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;background:#111827}
+    .dot.profit{background:#7b8494}.dot.budget{background:#c5cad3}
+    .table-scroll{overflow:auto}
+    table{border-collapse:separate;border-spacing:0;width:max-content;min-width:100%;font-size:13px}
+    th,td{padding:12px 14px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);white-space:nowrap;text-align:right}
+    th{background:#f8f9fb;color:#707783;font-weight:650;position:sticky;top:0;z-index:2}
+    th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:inherit;z-index:1}
+    th:first-child{z-index:3;background:#f8f9fb}
+    tr:last-child td{border-bottom:0}
+    td.positive{color:var(--green);font-weight:650}
+    td.negative{color:var(--red);font-weight:650}
+    .tabs{display:flex;gap:8px;overflow:auto;padding-bottom:3px}
+    .tab{border:1px solid var(--line);background:#fff;border-radius:12px;padding:9px 13px;cursor:pointer;font-weight:700;white-space:nowrap}
+    .tab.active{background:#111827;color:#fff;border-color:#111827}
+    .products{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:15px}
+    .product{border:1px solid var(--line);border-radius:18px;overflow:hidden;background:var(--panel2)}
+    .product-head{display:flex;align-items:center;gap:14px;padding:15px;background:#fff;border-bottom:1px solid var(--line)}
+    .photo{width:72px;height:94px;object-fit:cover;border-radius:12px;background:#edf0f4;border:1px solid var(--line)}
+    .photo-placeholder{width:72px;height:94px;border-radius:12px;background:#edf0f4;border:1px solid var(--line);display:grid;place-items:center;color:#9aa1ad;font-size:10px;text-align:center}
+    .sku{font-size:16px;font-weight:850;letter-spacing:-.02em}
+    .sku-caption{margin-top:5px;font-size:12px;color:var(--muted)}
+    .mini-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px 14px 0}
+    .mini{background:#fff;border:1px solid var(--line);border-radius:13px;padding:11px}
+    .mini span{display:block;color:var(--muted);font-size:11px;margin-bottom:5px}
+    .mini b{font-size:16px}
+    .product .table-scroll{padding:12px 14px 14px}
+    .product table{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+    .loader,.error{margin-top:22px;padding:22px;background:#fff;border:1px solid var(--line);border-radius:18px;color:var(--muted);text-align:center}
+    .error{color:#9b2c2c}
+    .hidden{display:none!important}
+    footer{padding:22px 4px 4px;text-align:center;color:#9aa1ad;font-size:11px}
+    @media(max-width:900px){
+      .shell{padding:14px}
+      .topbar{border-radius:18px;padding:18px}
+      .status{display:none}
+      .controls{align-items:flex-start;flex-direction:column}
+      .kpis{grid-template-columns:1fr}
+      .products{grid-template-columns:1fr;padding:10px}
+      .kpi .value{font-size:28px}
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">ЕБ</div>
+        <div>
+          <h1 id="clientTitle">ИП Сергеева · Wildberries</h1>
+          <p>Персональный кабинет · данные обновляются автоматически</p>
+        </div>
+      </div>
+      <div class="status">Обновлено<br><b id="updatedAt">—</b></div>
+    </header>
+
+    <div class="controls">
+      <div class="periods">
+        <button class="period" data-days="7">7 дней</button>
+        <button class="period active" data-days="14">14 дней</button>
+        <button class="period" data-days="30">30 дней</button>
+        <button class="period" data-days="0">Весь период</button>
+      </div>
+      <button class="refresh" id="refreshBtn">Обновить данные</button>
+    </div>
+
+    <div id="loader" class="loader">Загружаем данные из отчёта…</div>
+    <div id="error" class="error hidden"></div>
+
+    <div id="dashboard" class="hidden">
+      <section class="kpis">
+        <div class="kpi">
+          <div class="label">Заказы</div>
+          <div class="value" id="ordersTotal">—</div>
+          <div class="sub" id="ordersSub"></div>
+        </div>
+        <div class="kpi">
+          <div class="label">Чистая прибыль</div>
+          <div class="value" id="profitTotal">—</div>
+          <div class="sub" id="profitSub"></div>
+        </div>
+        <div class="kpi">
+          <div class="label">Бюджет</div>
+          <div class="value" id="budgetTotal">—</div>
+          <div class="sub" id="budgetSub"></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <div class="section-title">Сводная по категории</div>
+            <div class="section-note">Единая картина продаж, прибыли и рекламного бюджета</div>
+          </div>
+        </div>
+        <div class="chartwrap">
+          <div style="display:flex;justify-content:space-between;align-items:end;padding:4px 3px 10px">
+            <div><div style="font-size:12px;color:#8a919e">Динамика заказов</div><div style="font-size:22px;font-weight:850;letter-spacing:-.04em" id="chartHeadline">—</div></div>
+            <div style="font-size:11px;color:#9aa1ad">по дням</div>
+          </div>
+          <svg id="summaryChart" class="chart" viewBox="0 0 1200 220" preserveAspectRatio="none"></svg>
+        </div>
+        <div class="legend"><span><i class="dot"></i>Заказы</span><span style="margin-left:auto;color:#a1a7b1">Наведите на график, чтобы увидеть значения</span></div>
+        <div class="table-scroll"><table id="summaryTable"></table></div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <div>
+            <div class="section-title">По товарам</div>
+            <div class="section-note">Склейки и товары из отчёта</div>
+          </div>
+          <div class="tabs" id="categoryTabs"></div>
+        </div>
+        <div class="products" id="products"></div>
+      </section>
+    </div>
+
+    <footer>Е-БЮРО · данные Wildberries собраны и обновляются автоматически</footer>
+  </main>
+
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbyzgipoE-8-zIWz72CUGb5Y7rNlm5EQXZhnKyNBXrQnlV42d61upNBK2M6AouLLzfiHLQ/exec";
+    let DATA = null;
+    let PERIOD = 14;
+    let ACTIVE_CATEGORY = null;
+    let scriptNode = null;
+
+    const fmtInt = n => new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Number(n)||0);
+    const fmtMoney = n => new Intl.NumberFormat('ru-RU',{maximumFractionDigits:0}).format(Number(n)||0) + ' ₽';
+    const fmtDate = s => {
+      if(!s) return '';
+      const [y,m,d] = s.split('-');
+      return `${d}.${m}`;
+    };
+
+    function rangeSlice(arr){
+      if(!Array.isArray(arr)) return [];
+      return PERIOD > 0 ? arr.slice(-PERIOD) : arr.slice();
+    }
+    function sum(arr){ return (arr||[]).reduce((a,b)=>a+(Number(b)||0),0); }
+
+    function jsonpLoad(){
+      document.getElementById('loader').classList.remove('hidden');
+      document.getElementById('error').classList.add('hidden');
+      if(scriptNode) scriptNode.remove();
+      scriptNode = document.createElement('script');
+      scriptNode.src = API_URL + '?callback=renderDashboard&ts=' + Date.now();
+      scriptNode.onerror = () => showError('Не удалось получить данные отчёта. Обновите страницу через минуту.');
+      document.body.appendChild(scriptNode);
+    }
+
+    window.renderDashboard = function(data){
+      if(!data || data.ok !== true){
+        showError(data && data.error ? data.error : 'API вернул ошибку.');
+        return;
+      }
+      DATA = data;
+      ACTIVE_CATEGORY = ACTIVE_CATEGORY || (data.categories?.[0]?.id ?? null);
+      document.getElementById('loader').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      document.getElementById('clientTitle').textContent = `${data.client || 'Клиент'} · ${data.marketplace || 'Wildberries'}`;
+      document.getElementById('updatedAt').textContent = (data.generatedAt || '').replace('T',' ');
+      paint();
+    };
+
+    function showError(msg){
+      document.getElementById('loader').classList.add('hidden');
+      document.getElementById('error').textContent = msg;
+      document.getElementById('error').classList.remove('hidden');
+    }
+
+    function paint(){
+      renderKpis();
+      renderSummary();
+      renderTabs();
+      renderProducts();
+    }
+
+    function renderKpis(){
+      const s = DATA.summary || {};
+      const orders = sum(rangeSlice(s.orders));
+      const profit = sum(rangeSlice(s.profit));
+      const budget = sum(rangeSlice(s.budget));
+      const dates = rangeSlice(s.dates);
+      const label = dates.length ? `${fmtDate(dates[0])} — ${fmtDate(dates[dates.length-1])}` : '';
+      document.getElementById('ordersTotal').textContent = fmtInt(orders);
+      document.getElementById('profitTotal').textContent = fmtMoney(profit);
+      document.getElementById('budgetTotal').textContent = fmtMoney(budget);
+      document.getElementById('ordersSub').textContent = label;
+      document.getElementById('profitSub').textContent = label;
+      document.getElementById('budgetSub').textContent = label;
+    }
+
+    function renderSummary(){
+      const s = DATA.summary || {};
+      const dates = rangeSlice(s.dates);
+      const orders = rangeSlice(s.orders);
+      const profit = rangeSlice(s.profit);
+      const budget = rangeSlice(s.budget);
+
+      let html = '<thead><tr><th>Показатель</th>' + dates.map(d=>`<th>${fmtDate(d)}</th>`).join('') + '</tr></thead><tbody>';
+      html += '<tr><td><b>Заказы</b></td>' + orders.map(v=>`<td>${fmtInt(v)}</td>`).join('') + '</tr>';
+      html += '<tr><td><b>Чистая прибыль</b></td>' + profit.map(v=>`<td class="${Number(v)<0?'negative':Number(v)>0?'positive':''}">${fmtMoney(v)}</td>`).join('') + '</tr>';
+      html += '<tr><td><b>Бюджет</b></td>' + budget.map(v=>`<td>${fmtMoney(v)}</td>`).join('') + '</tr>';
+      html += '</tbody>';
+      document.getElementById('summaryTable').innerHTML = html;
+
+      drawChart(orders, profit, budget);
+    }
+
+    function drawChart(orders, profit, budget){
+      const svg = document.getElementById('summaryChart');
+      const dates = rangeSlice((DATA.summary||{}).dates);
+      const vals = orders.map(v=>Number(v)||0);
+      const n=Math.max(vals.length,1), W=1200, H=220, L=45, R=18, T=20, B=36;
+      const max=Math.max(...vals,1);
+      const x=i=>L+i*((W-L-R)/Math.max(n-1,1));
+      const y=v=>T+(max-v)/max*(H-T-B);
+      const pts=vals.map((v,i)=>[x(i),y(v)]);
+      const path=pts.length ? 'M '+pts.map(p=>p.join(' ')).join(' L ') : '';
+      const area=pts.length ? path+` L ${x(n-1)} ${H-B} L ${x(0)} ${H-B} Z` : '';
+      let grid='';
+      for(let i=0;i<4;i++){const gy=T+i*(H-T-B)/3; grid+=`<line x1="${L}" y1="${gy}" x2="${W-R}" y2="${gy}" stroke="#edf0f4" vector-effect="non-scaling-stroke"/>`;}
+      let labels='', dots='';
+      const step=Math.max(1,Math.ceil(n/7));
+      dates.forEach((d,i)=>{if(i%step===0||i===n-1) labels+=`<text x="${x(i)}" y="${H-9}" text-anchor="middle" font-size="10" fill="#9299a5">${fmtDate(d)}</text>`;});
+      pts.forEach((p,i)=>{dots+=`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="#fff" stroke="#111827" stroke-width="2" vector-effect="non-scaling-stroke"><title>${dates[i] ? fmtDate(dates[i]) : ''}: ${fmtInt(vals[i])} заказов</title></circle>`;});
+      svg.innerHTML=`<defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#111827" stop-opacity=".16"/><stop offset="100%" stop-color="#111827" stop-opacity="0"/></linearGradient></defs>${grid}<path d="${area}" fill="url(#areaGrad)"/><path d="${path}" fill="none" stroke="#111827" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>${dots}${labels}`;
+      document.getElementById('chartHeadline').textContent=fmtInt(sum(vals))+' заказов';
+    }
+
+    function renderTabs(){
+      const el = document.getElementById('categoryTabs');
+      el.innerHTML = (DATA.categories||[]).map(c=>`<button class="tab ${String(c.id)===String(ACTIVE_CATEGORY)?'active':''}" data-id="${c.id}">${c.name}</button>`).join('');
+      el.querySelectorAll('.tab').forEach(btn=>btn.onclick=()=>{ACTIVE_CATEGORY=btn.dataset.id; renderTabs(); renderProducts();});
+    }
+
+    function renderProducts(){
+      const cat = (DATA.categories||[]).find(c=>String(c.id)===String(ACTIVE_CATEGORY));
+      const el = document.getElementById('products');
+      if(!cat){ el.innerHTML=''; return; }
+      el.innerHTML = (cat.products||[]).map(productCard).join('');
+    }
+
+    function productCard(p){
+      const dates = rangeSlice(p.dates);
+      const orders = rangeSlice(p.orders);
+      const profit = rangeSlice(p.profit);
+      const budget = rangeSlice(p.budget);
+      const photo = p.photo
+        ? `<img class="photo" src="${p.photo}" alt="Товар ${p.nmId}" referrerpolicy="no-referrer">`
+        : `<div class="photo-placeholder">фото<br>недоступно</div>`;
+      let rows = '<thead><tr><th>Показатель</th>' + dates.map(d=>`<th>${fmtDate(d)}</th>`).join('') + '</tr></thead><tbody>';
+      rows += '<tr><td>Заказы</td>' + orders.map(v=>`<td>${fmtInt(v)}</td>`).join('') + '</tr>';
+      rows += '<tr><td>Чистая прибыль</td>' + profit.map(v=>`<td class="${Number(v)<0?'negative':Number(v)>0?'positive':''}">${fmtMoney(v)}</td>`).join('') + '</tr>';
+      rows += '<tr><td>Бюджет</td>' + budget.map(v=>`<td>${fmtMoney(v)}</td>`).join('') + '</tr></tbody>';
+      return `
+        <article class="product">
+          <div class="product-head">
+            ${photo}
+            <div>
+              <div class="sku">${p.nmId}</div>
+              <div class="sku-caption">Артикул Wildberries</div>
+            </div>
+          </div>
+          <div class="mini-kpis">
+            <div class="mini"><span>Заказы</span><b>${fmtInt(sum(orders))}</b></div>
+            <div class="mini"><span>Прибыль</span><b>${fmtMoney(sum(profit))}</b></div>
+            <div class="mini"><span>Бюджет</span><b>${fmtMoney(sum(budget))}</b></div>
+          </div>
+          <div class="table-scroll"><table>${rows}</table></div>
+        </article>`;
+    }
+
+    document.querySelectorAll('.period').forEach(btn=>{
+      btn.onclick=()=>{
+        PERIOD=Number(btn.dataset.days);
+        document.querySelectorAll('.period').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        if(DATA) paint();
+      };
+    });
+    document.getElementById('refreshBtn').onclick=jsonpLoad;
+    jsonpLoad();
+  </script>
+</body>
+</html>
