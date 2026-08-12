@@ -1,0 +1,8 @@
+<!doctype html><html lang='ru'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Е-БЮРО · WB Dashboard</title><link rel='stylesheet' href='style.css'></head><body>
+<div class='shell'><aside><div class='logo'>Е-БЮРО</div><div class='sub'>WB Analytics</div><nav><button class='active'>Обзор</button><button>Товары</button><button>Категории</button></nav><div class='aside-foot'>Данные обновляются автоматически</div></aside>
+<main><header><div><div class='eyebrow'>КЛИЕНТСКИЙ КАБИНЕТ</div><h1 id='client'>ИП Сергеева</h1></div><div class='controls'><select id='period'><option value='1'>Вчера</option><option value='7' selected>7 дней</option><option value='30'>30 дней</option></select><button id='refresh'>Обновить</button></div></header>
+<div id='status' class='status'>Загрузка данных…</div>
+<section id='kpis' class='kpis'></section>
+<section class='grid'><div class='panel wide'><div class='panel-head'><h2>Динамика</h2><span>Продажи · реклама · прибыль</span></div><canvas id='chart' width='900' height='300'></canvas></div><div class='panel'><div class='panel-head'><h2>Требует внимания</h2></div><div id='alerts'></div></div></section>
+<section class='panel'><div class='panel-head'><h2>Товары</h2><span id='productCount'></span></div><div id='products' class='products'></div></section>
+<footer>Е-БЮРО · реклама движется туда, где прибыль</footer></main></div><script src='app.js'></script></body></html>
