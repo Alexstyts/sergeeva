@@ -1,1 +1,64 @@
+name: Update dashboard data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '10 0 * * *'
+    - cron: '10 7 * * *'
+    - cron: '10 17 * * *'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dashboard-data
+  cancel-in-progress: true
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download dashboard data
+        run: |
+          curl -L --fail --retry 3 --retry-delay 5 \
+            "https://script.google.com/macros/s/AKfycbyzgipoE-8-zIWz72CUGb5Y7rNlm5EQXZhnKyNBXrQnlV42d61upNBK2M6AouLLzfiHLQ/exec?ts=$(date +%s)" \
+            -o data.tmp.json
+
+      - name: Validate and save data.json
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          src = Path("data.tmp.json")
+          data = json.loads(src.read_text(encoding="utf-8"))
+
+          if data.get("ok") is not True:
+              raise SystemExit("Apps Script returned ok != true")
+
+          Path("data.json").write_text(
+              json.dumps(data, ensure_ascii=False, separators=(",", ":")),
+              encoding="utf-8"
+          )
+          PY
+
+          rm -f data.tmp.json
+
+      - name: Commit updated data
+        run: |
+          if git diff --quiet -- data.json; then
+            echo "No dashboard changes"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data.json
+          git commit -m "Update dashboard data"
+          git push
 
